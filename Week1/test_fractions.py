@@ -1,4 +1,4 @@
-from Week1.fraction import Fraction
+from fraction import Fraction
 
 def test_eq():
     a = Fraction.from_string("1/3")
