@@ -30,8 +30,8 @@ jobs:
     - name: Test script with pytest
       if: always()
       run: |
-        pytest Week1/hw1_tests1.py
+        pytest Week1//HW1/hw1_tests1.py
     - name: Test script with pytest
       if: always()
       run: |
-        pytest hw1_tests2.py
+        pytest Week1/HW1/hw1_tests2.py

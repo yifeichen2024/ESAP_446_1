@@ -1,5 +1,6 @@
 import numpy as np
 import math 
+
 class Polynomial:
 
     def __init__(self, coefficients):
