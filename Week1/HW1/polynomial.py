@@ -9,7 +9,15 @@ class Polynomial:
         order
         '''
         self.coefficients = np.array(coefficients, dtype=int)
+        self._remove_trailing_zeros()
         self.order = len(self.coefficients) - 1
+
+    def _remove_trailing_zeros(self):
+        """
+        get rid off the high order zero term 
+        """
+        while len(self.coefficients) > 1 and self.coefficients[-1] == 0:
+            self.coefficients = self.coefficients[:-1]
 
     @staticmethod 
     def from_string(poly_string):
@@ -21,31 +29,52 @@ class Polynomial:
         coefficients = {}
 
         for term in terms:
+            if not term:
+                continue
+            
+            term = term.replace("*", "")
+            
             if "x^" in term:
-                coef, power = term.split("*x^")
+                coef, power = term.split("x^")
                 power = int(power)
+                if coef in ("", "+"):
+                    coef = 1
+                elif coef == "-":
+                    coef = -1
+                else:
+                    coef = int(coef)
+
             elif "x" in term:
-                coef = term.split("*x")[0]
+                coef = term.replace("x", "")
+                # coef = term.split("*x")[0]
                 power = 1
-            else:
-                coef = term
+                if coef in ("", "+"):
+                    coef = 1
+                elif coef in "-":
+                    coef = -1
+                else:
+                    coef = int(coef)
+             
+            elif term:
+                coef = int(term)
                 power = 0
             
-            coef = int(coef) if coef else 1
+            # coef = int(coef) if coef else 1
             coefficients[power] = coef
 
-        max_order = max(coefficients.keys())
-        result = np.zeros(max_order + 1, dtype=int)
+        if coefficients:
+            max_order = max(coefficients.keys())
+            result = np.zeros(max_order + 1, dtype=int)
         
-        for power, coef in coefficients.items():
-            result[power] = coef
+            for power, coef in coefficients.items():
+                result[power] = coef
         
-        return Polynomial(result)
+            return Polynomial(result)
+        else:
+            return Polynomial([0])
 
     def __repr__(self):
-        '''
-        Useful visual representation 
-        '''
+ 
         terms = []
         for power, coef in enumerate(self.coefficients):
             if coef == 0:
@@ -53,43 +82,84 @@ class Polynomial:
             if power == 0:
                 terms.append(f"{coef}")
             elif power == 1:
-                terms.append(f"{coef}*x")
+                if coef == 1:
+                    terms.append("x")
+                elif coef == -1:
+                    terms.append("-x")
+                else:
+                    terms.append(f"{coef}*x")
             else:
-                terms.append(f"{coef}*x^{power}")
-
-        return " + ".join(terms).replace(" + ", " - ")
+                if coef == 1:
+                    terms.append(f"x^{power}")
+                elif coef == -1:
+                    terms.append(f"-x^{power}")
+                else:
+                    terms.append(f"{coef}*x^{power}")
+    
+        # correct the plus and minos 
+        result = " + ".join(terms)
+        result = result.replace("+ -", "- ")  
+    
+        return result
 
     def __add__(self, other):
-        '''
-        addition operation for polynomial 
-        '''
+
         max_order = max(self.order, other.order)
         new_coefficients = np.zeros(max_order + 1, dtype=int)
-
+    
+        # coeff of self
         for i in range(self.order + 1):
             new_coefficients[i] += self.coefficients[i]
-        
+    
+        # coeff of self
         for i in range(other.order + 1):
             new_coefficients[i] += other.coefficients[i]
+    
+        # return for the polynomial type
+        return Polynomial(new_coefficients)  
+    # def __add__(self, other):
+    #     '''
+    #     addition operation for polynomial 
+    #     '''
+    #     max_order = max(self.order, other.order)
+    #     new_coefficients = np.zeros(max_order + 1, dtype=int)
 
-        return Polynomial(new_coefficients)
+    #     for i in range(self.order + 1):
+    #         new_coefficients[i] += self.coefficients[i]
+        
+    #     for i in range(other.order + 1):
+    #         new_coefficients[i] += other.coefficients[i]
+
+    #     return Polynomial(new_coefficients)
 
 
+    # def __sub__(self, other):
+    #     '''
+    #     subtraction operation 
+    #     '''
+    #     max_order = max(self.order, other.order)
+    #     new_coefficients = np.zeros(max_order + 1, dtype=int)
+
+    #     for i in range(self.order + 1):
+    #         new_coefficients[i] += self.coefficients[i]
+        
+    #     for i in range(other.order + 1):
+    #         new_coefficients[i] -= other.coefficients[i]
+
+    #     return Polynomial(new_coefficients)
+    
     def __sub__(self, other):
-        '''
-        subtraction operation 
-        '''
+
         max_order = max(self.order, other.order)
         new_coefficients = np.zeros(max_order + 1, dtype=int)
 
         for i in range(self.order + 1):
             new_coefficients[i] += self.coefficients[i]
-        
+    
         for i in range(other.order + 1):
             new_coefficients[i] -= other.coefficients[i]
 
         return Polynomial(new_coefficients)
-        
 
     def __mul__(self, other):
         '''
