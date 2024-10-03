@@ -1,5 +1,6 @@
 import numpy as np
-import math 
+import math
+
 
 class Polynomial:
 
@@ -118,36 +119,6 @@ class Polynomial:
     
         # return for the polynomial type
         return Polynomial(new_coefficients)  
-    # def __add__(self, other):
-    #     '''
-    #     addition operation for polynomial 
-    #     '''
-    #     max_order = max(self.order, other.order)
-    #     new_coefficients = np.zeros(max_order + 1, dtype=int)
-
-    #     for i in range(self.order + 1):
-    #         new_coefficients[i] += self.coefficients[i]
-        
-    #     for i in range(other.order + 1):
-    #         new_coefficients[i] += other.coefficients[i]
-
-    #     return Polynomial(new_coefficients)
-
-
-    # def __sub__(self, other):
-    #     '''
-    #     subtraction operation 
-    #     '''
-    #     max_order = max(self.order, other.order)
-    #     new_coefficients = np.zeros(max_order + 1, dtype=int)
-
-    #     for i in range(self.order + 1):
-    #         new_coefficients[i] += self.coefficients[i]
-        
-    #     for i in range(other.order + 1):
-    #         new_coefficients[i] -= other.coefficients[i]
-
-    #     return Polynomial(new_coefficients)
     
     def __sub__(self, other):
 
@@ -161,6 +132,10 @@ class Polynomial:
             new_coefficients[i] -= other.coefficients[i]
 
         return Polynomial(new_coefficients)
+    
+    # Add for testing 
+    def __neg__(self):
+        return Polynomial([-coef for coef in self.coefficients])
 
     def __mul__(self, other):
         '''
@@ -189,8 +164,10 @@ class Polynomial:
         else:
             raise ValueError("ERROR: ")
 
+
+
 class RationalPolynomial:
-    def __init__(self, numerator, denominator):
+    def __init__(self, numerator: Polynomial, denominator: Polynomial):
         '''
         Store a numerator and denominator,
         each of which are Polynomials,
@@ -201,26 +178,47 @@ class RationalPolynomial:
         self._reduce()
 
     @staticmethod
-    def from_string(rational_str):
+    def from_string(string):
         '''
         The string used to specify a RationalPolynomial,
         numerator and denominator separated by a / character  
         '''
-        rational_str = rational_str.replace(" ","")
-        numerator_str, denominator_str = rational_str.split("/")
+        string = string.replace(" ","")
+        numerator_str, denominator_str = string.split("/")
+        # move /
         numerator = Polynomial.from_string(numerator_str[1:-1])
         denominator = Polynomial.from_string(denominator_str[1:-1])
 
         return RationalPolynomial(numerator, denominator)
     
     def _reduce(self):
-        
-        gcd = math.gcd(self.numerator, self.denominator)
-        self.numerator = self.numerator // gcd
-        self.denominator = self.denominator // gcd
-        if self.denominator < 0:
-            self.numerator *= -1
-            self.denominator *= -1
+        """
+        尝试化简分子和分母，找到分子和分母的最大公因式。
+        """
+        # 获取分子和分母的系数
+        num_coeff = self.numerator.coefficients
+        denom_coeff = self.denominator.coefficients
+    
+        # 找到分子和分母中最短的系数数组
+        min_len = min(len(num_coeff), len(denom_coeff))
+    
+        # 初始化最大公因数为1
+        common_gcd = 1
+
+        # 找到分子和分母相应项的最大公因数
+        for i in range(min_len): 
+            common_gcd = math.gcd(num_coeff[i], denom_coeff[i])
+            if common_gcd > 1:
+                # 如果找到最大公因数，除以公因数
+                self.numerator.coefficients[i] //= common_gcd
+                self.denominator.coefficients[i] //= common_gcd
+    
+        # 确保分母不为负数
+        if self.denominator.coefficients[-1] < 0:
+            self.denominator.coefficients = [-c for c in self.denominator.coefficients]
+            self.numerator.coefficients = [-c for c in self.numerator.coefficients]
+            # self.numerator = -self.numerator
+            # self.denominator = -self.denominator
 
     def __repr__(self):
         '''
@@ -241,11 +239,16 @@ class RationalPolynomial:
         '''
         subtraction operation 
         '''
-        numerator = (self.numerator * other.denominator) - (self.denominator * other.numerator)
-        denominator = self.denominator * other.denominator
+        return self + (-other)
+        # numerator = (self.numerator * other.denominator) - (self.denominator * other.numerator)
+        # denominator = self.denominator * other.denominator
 
-        return RationalPolynomial(numerator, denominator)
+        # return RationalPolynomial(numerator, denominator)
 
+    def __neg__(self):
+
+        return RationalPolynomial(-self.numerator, self.denominator)
+    
     def __mul__(self, other):
         '''
         multiplication operation
