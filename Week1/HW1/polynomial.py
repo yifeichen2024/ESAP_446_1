@@ -1,6 +1,8 @@
+'''
+@Yifei Chen 
+'''
 import numpy as np
 import math
-
 
 class Polynomial:
 
@@ -26,7 +28,9 @@ class Polynomial:
         '''
         Define a polynomial from a strings
         '''
-        poly_string = poly_string.replace(" ", "")
+        # get rid off 
+        poly_string = poly_string.replace("(", "").replace(")", "").replace(" ", "")
+        # poly_string = poly_string.replace(" ", "")
         terms = poly_string.replace("-", "+-").split("+")
         coefficients = {}
 
@@ -36,6 +40,7 @@ class Polynomial:
             
             term = term.replace("*", "")
             
+            # order stuff
             if "x^" in term:
                 coef, power = term.split("x^")
                 power = int(power)
@@ -76,7 +81,9 @@ class Polynomial:
             return Polynomial([0])
 
     def __repr__(self):
- 
+        '''
+        Show the Polynomials 
+        '''
         terms = []
         for power, coef in enumerate(self.coefficients):
             if coef == 0:
@@ -105,7 +112,9 @@ class Polynomial:
         return result
 
     def __add__(self, other):
-
+        '''
+        + operation
+        '''
         max_order = max(self.order, other.order)
         new_coefficients = np.zeros(max_order + 1, dtype=int)
     
@@ -113,7 +122,7 @@ class Polynomial:
         for i in range(self.order + 1):
             new_coefficients[i] += self.coefficients[i]
     
-        # coeff of self
+        # coeff of other
         for i in range(other.order + 1):
             new_coefficients[i] += other.coefficients[i]
     
@@ -121,7 +130,9 @@ class Polynomial:
         return Polynomial(new_coefficients)  
     
     def __sub__(self, other):
-
+        '''
+        - operation 
+        '''
         max_order = max(self.order, other.order)
         new_coefficients = np.zeros(max_order + 1, dtype=int)
 
@@ -162,7 +173,7 @@ class Polynomial:
         if isinstance(other, Polynomial):
             return RationalPolynomial(self, other)
         else:
-            raise ValueError("ERROR: ")
+            raise ValueError("ERROR")
 
 
 
@@ -175,7 +186,6 @@ class RationalPolynomial:
         '''
         self.numerator = numerator
         self.denominator = denominator
-        self._reduce()
 
     @staticmethod
     def from_string(string):
@@ -188,52 +198,71 @@ class RationalPolynomial:
         # move /
         numerator = Polynomial.from_string(numerator_str[1:-1])
         denominator = Polynomial.from_string(denominator_str[1:-1])
-
         return RationalPolynomial(numerator, denominator)
     
     def _reduce(self):
         """
-        尝试化简分子和分母，找到分子和分母的最大公因式。
+        Reduce the Rational Polynomial 
         """
-        # 获取分子和分母的系数
         num_coeff = self.numerator.coefficients
         denom_coeff = self.denominator.coefficients
     
-        # 找到分子和分母中最短的系数数组
         min_len = min(len(num_coeff), len(denom_coeff))
-    
-        # 初始化最大公因数为1
         common_gcd = 1
 
-        # 找到分子和分母相应项的最大公因数
+        # Find 
         for i in range(min_len): 
             common_gcd = math.gcd(num_coeff[i], denom_coeff[i])
             if common_gcd > 1:
-                # 如果找到最大公因数，除以公因数
                 self.numerator.coefficients[i] //= common_gcd
                 self.denominator.coefficients[i] //= common_gcd
     
-        # 确保分母不为负数
+        # ensure the denominator is not -
         if self.denominator.coefficients[-1] < 0:
             self.denominator.coefficients = [-c for c in self.denominator.coefficients]
             self.numerator.coefficients = [-c for c in self.numerator.coefficients]
-            # self.numerator = -self.numerator
-            # self.denominator = -self.denominator
+            self.numerator = -self.numerator
+            self.denominator = -self.denominator
 
     def __repr__(self):
         '''
         Useful visual representation 
+        Return the rational polynomial 
         '''
-        return f"({self.numerator}) / ({self.denominator})"
+        if all(c == 0 for c in self.numerator.coefficients):
+            return "(0) / (1)"
+        
+        numerator_str = str(self.numerator)
+        denominator_str = str(self.denominator)
+        
+        # if the denominator equals to 1, return for the numerator
+        if self.denominator == Polynomial([1]):
+            return f"({numerator_str})"
+        
+        if all(c == 0 for c in self.denominator.coefficients):
+            denominator_str = "1"
+
+        return f"({numerator_str}) / ({denominator_str})"
+    
 
     def __add__(self, other):
         '''
         addition operation
         '''
-        numerator = (self.numerator * other.denominator) + (self.denominator * other.numerator)
-        denominator = self.denominator * other.denominator
+        # numerator = (self.numerator * other.denominator) + (self.denominator * other.numerator)
+        # denominator = self.denominator * other.denominator
+        # return RationalPolynomial(numerator, denominator)
+        if self.denominator == other.denominator:
+            numerator = Polynomial.__add__(self.numerator, other.numerator) 
+            denominator = self.denominator
+        else:
+            numerator = Polynomial.__add__(Polynomial.__mul__(self.numerator, other.denominator), Polynomial.__mul__(self.denominator, other.numerator))+ (self.denominator * other.numerator)
+            denominator = Polynomial.__mul__(self.denominator, other.denominator)
+        # result = RationalPolynomial(numerator, denominator)
+        # result._reduce()  # 添加化简步骤
 
         return RationalPolynomial(numerator, denominator)
+        
 
     def __sub__(self, other):
         '''
@@ -271,7 +300,12 @@ class RationalPolynomial:
         '''
         equality 
         '''
+        # if Polynomial.__eq__(self.numerator, other.numerator):
+        #     if Polynomial.__eq__(self.denominator, other.denominator):
+        #         return True
+        # return False
         if isinstance(other, RationalPolynomial):
             return (self.numerator * other.denominator) == (self.denominator * other.numerator)
         return False
+        
 
