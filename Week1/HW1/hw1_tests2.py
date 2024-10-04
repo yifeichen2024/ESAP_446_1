@@ -1,13 +1,13 @@
 from polynomial import Polynomial, RationalPolynomial
 
 def test_rational_polynomial_from_string():
-    a = RationalPolynomial.from_string("(1 + 2*x)/(-3 + 2*x + 3*x^4)")
-    assert repr(a) == "(1 + 2*x) / (-3 + 2*x + 3*x^4)"
+    a = RationalPolynomial.from_string("(1 + 2*x)/(-3 + 4*x + 5*x^6)")
+    assert repr(a) == "(1 + 2*x) / (-3 + 4*x + 5*x^6)"
 
 def test_rational_polynomial_reduce():
-    rp1 = RationalPolynomial.from_string("(1 + 2x)/(-1 + x + 3*x^4)")
-rp2 = RationalPolynomial.from_string("(-3 - 6*x)/(3 - 3*x - 9*x^4)")
-
+    a = RationalPolynomial.from_string("(1 + 2*x - 5*x^2)/(-1 + x + 3*x^4)")
+    b = RationalPolynomial.from_string("(-3 - 6*x + 15*x^2)/(3 - 3*x - 9*x^4)")
+    assert a == b
 # Addition
 def test_rational_polynomial_addition():
     a = RationalPolynomial.from_string("(1 + x)/2")
