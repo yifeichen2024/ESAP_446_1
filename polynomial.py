@@ -249,19 +249,19 @@ class RationalPolynomial:
         '''
         addition operation
         '''
-        # numerator = (self.numerator * other.denominator) + (self.denominator * other.numerator)
-        # denominator = self.denominator * other.denominator
-        # return RationalPolynomial(numerator, denominator)
-        if self.denominator == other.denominator:
-            numerator = Polynomial.__add__(self.numerator, other.numerator) 
-            denominator = self.denominator
-        else:
-            numerator = Polynomial.__add__(Polynomial.__mul__(self.numerator, other.denominator), Polynomial.__mul__(self.denominator, other.numerator))+ (self.denominator * other.numerator)
-            denominator = Polynomial.__mul__(self.denominator, other.denominator)
+        numerator = (self.numerator * other.denominator) + (self.denominator * other.numerator)
+        denominator = self.denominator * other.denominator
+        return RationalPolynomial(numerator, denominator)
+        # if self.denominator == other.denominator:
+        #     numerator = Polynomial.__add__(self.numerator, other.numerator) 
+        #     denominator = self.denominator
+        # else:
+        #     numerator = Polynomial.__add__(Polynomial.__mul__(self.numerator, other.denominator), Polynomial.__mul__(self.denominator, other.numerator))+ (self.denominator * other.numerator)
+        #     denominator = Polynomial.__mul__(self.denominator, other.denominator)
         # result = RationalPolynomial(numerator, denominator)
         # result._reduce()  # 添加化简步骤
 
-        return RationalPolynomial(numerator, denominator)
+        # return RationalPolynomial(numerator, denominator)
         
 
     def __sub__(self, other):
