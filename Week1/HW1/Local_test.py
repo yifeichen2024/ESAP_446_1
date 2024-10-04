@@ -1,11 +1,19 @@
 from polynomial import Polynomial, RationalPolynomial
 
-a = RationalPolynomial.from_string("(1 + 7*x^2)/(3)")
-b = RationalPolynomial.from_string("(-3 - x + 2*x^2)/(3)")
-c = RationalPolynomial.__add__(a, b)
-print("Parsed A: ", a)
-print("Parsed B: ", b)
-print("Result C: ", c)
+
+a = RationalPolynomial.from_string("(2 + 14*x^2)/(4 + 2*x)")
+b = RationalPolynomial.from_string("(-3 - x^2 + 2*x^3)/(2 + x)")
+c = RationalPolynomial.from_string("(-2 + 6*x^2 + 2*x^3)/(2 + x)")
+print(a)
+print(b)
+print(a+b)
+print(c)
+# a = RationalPolynomial.from_string("(1 + 7*x^2)/(3)")
+# b = RationalPolynomial.from_string("(-3 - x + 2*x^2)/(3)")
+# c = RationalPolynomial.__add__(a, b)
+# print("Parsed A: ", a)
+# print("Parsed B: ", b)
+# print("Result C: ", c)
 
 # a2 = RationalPolynomial.from_string("(2 + x)/1")
 # b2 = RationalPolynomial.from_string("(4 + 2*x)/2")
@@ -25,9 +33,9 @@ print("Result C: ", c)
 # print("Result C1: ", c1)
 # print(a1/b1 == c1)
 
-rp1 = RationalPolynomial.from_string("(2 + x)/(-1 + x + 2*x^3)")
-rp2 = RationalPolynomial.from_string("(-4 - 2*x)/(2 - 2*x - 4*x^3)")
-assert rp1 == rp2
-print(rp1)
-print(rp2)
-print(rp1 == rp2)
+# rp1 = RationalPolynomial.from_string("(2 + x)/(-1 + x + 2*x^3)")
+# rp2 = RationalPolynomial.from_string("(-4 - 2*x)/(2 - 2*x - 4*x^3)")
+# assert rp1 == rp2
+# print(rp1)
+# print(rp2)
+# print(rp1 == rp2)

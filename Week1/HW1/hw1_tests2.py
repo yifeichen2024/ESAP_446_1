@@ -16,21 +16,21 @@ def test_rational_polynomial_addition():
     assert a + b == c
 
 def test_rational_polynomial_add1():
-    a = RationalPolynomial.from_string("(1 + 7*x^2)/(3)")
-    b = RationalPolynomial.from_string("(-3 - x + 2*x^2)/(3)")
-    c = RationalPolynomial.from_string("(-2 - x + 9*x^2)/(3)")
+    a = RationalPolynomial.from_string("(1 + 7*x^2)/(3*x^2)")
+    b = RationalPolynomial.from_string("(-3 - x + 2*x^2)/(3*x^2)")
+    c = RationalPolynomial.from_string("(-2 - x + 9*x^2)/(3*x^2)")
     assert a + b == c
 
 def test_rational_polynomial_add2():
-    a = RationalPolynomial.from_string("(1 + 7*x^2)/(2)")
-    b = RationalPolynomial.from_string("(-3 - x^2 + 2*x^3)/(2)")
-    c = RationalPolynomial.from_string("(-2 + 6*x^2 + 2*x^3)/(2)")
+    a = RationalPolynomial.from_string("(1 + 7*x^2)/(2 + 1*x)")
+    b = RationalPolynomial.from_string("(-3 - x^2 + 2*x^3)/(2 + x)")
+    c = RationalPolynomial.from_string("(-2 + 6*x^2 + 2*x^3)/(2 + x)")
     assert a + b == c
 
 def test_rational_polynomial_add3():
-    a = RationalPolynomial.from_string("(-3 - x^2 + 2*x^3)/(5)")
-    b = RationalPolynomial.from_string("(1 + 7*x^2)/(5)")
-    c = RationalPolynomial.from_string("(-2 + 6*x^2 + 2*x^3)/(5)")
+    a = RationalPolynomial.from_string("(-3 - x^2 + 2*x^3)/(5 + x+ 2*x^3)")
+    b = RationalPolynomial.from_string("(1 + 7*x^2)/(5 + x+ 2*x^3)")
+    c = RationalPolynomial.from_string("(-2 + 6*x^2 + 2*x^3)/(5 + x+ 2*x^3)")
     assert a + b == c
 
 def test_rational_polynomial_subtraction():
@@ -52,9 +52,9 @@ def test_rational_polynomial_subtraction2():
     assert a - b == c
 
 def test_rational_polynomial_multiplication():
-    a = RationalPolynomial.from_string("(x)/3")
+    a = RationalPolynomial.from_string("(x^2)/3")
     b = RationalPolynomial.from_string("(x)/3")
-    c = RationalPolynomial.from_string("(x^2)/9")
+    c = RationalPolynomial.from_string("(x^3)/9")
     assert a * b == c
 
 def test_rational_polynomial_multiplication1():
@@ -64,15 +64,15 @@ def test_rational_polynomial_multiplication1():
     assert a * b == c
 
 def test_rational_polynomial_multiplication2():
-    a = RationalPolynomial.from_string("(3 - 2*x^2 + x^3)/(1)")
-    b = RationalPolynomial.from_string("(2 - x + 3*x^2)/(1)")
-    c = RationalPolynomial.from_string("(6 - 3*x + 5*x^2 + 4*x^3 - 7*x^4 + 3*x^5)/(1)")
+    a = RationalPolynomial.from_string("(3 - 2*x^2 + x^3)/(3)")
+    b = RationalPolynomial.from_string("(2 - x + 3*x^2)/(4)")
+    c = RationalPolynomial.from_string("(6 - 3*x + 5*x^2 + 4*x^3 - 7*x^4 + 3*x^5)/(12)")
     assert a * b == c
 
 def test_rational_polynomial_division():
-    a = RationalPolynomial.from_string("(x^2)/4")
+    a = RationalPolynomial.from_string("(x^2)/8")
     b = RationalPolynomial.from_string("(x)/2")
-    c = RationalPolynomial.from_string("(x)/2")
+    c = RationalPolynomial.from_string("(x)/4")
     assert a / b == c
 
 
