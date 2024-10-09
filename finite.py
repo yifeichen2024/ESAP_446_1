@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import factorial
 from scipy import sparse
+from scipy.linalg import lstsq, solve
 
 class UniformPeriodicGrid:
 
@@ -79,45 +80,56 @@ Take derivatives of functions defined over a NonUniformPeriodicGrid
 hw2_test1
 '''
 class DifferenceNonUniformGrid(Difference):
-
     def __init__(self, derivative_order, convergence_order, grid, axis=0, stencil_type='centered'):
-
+        super().__init__()
         self.derivative_order = derivative_order
         self.convergence_order = convergence_order
         self.stencil_type = stencil_type
         self.axis = axis
-        self.grid = grid 
+        self.grid = grid
+        np.random.seed(42)
         self.matrix = self._construct_derivative_matrix()
 
     def _construct_derivative_matrix(self):
         N = self.grid.N
         values = self.grid.values
-        stencil = self._compute_stencil()
-        stencil_size = len(stencil)
-
-        # Create sparse matrix using the computed stencil
+        stencil_size = 2 * self.convergence_order + 1
         data = []
         rows = []
         cols = []
 
         for i in range(N):
-            offsets = np.arange(-(stencil_size // 2), stencil_size // 2 + 1)
-            indices = (i + offsets) % N
-            weights = self._compute_weights(values[indices], values[i])
-            data.extend(weights)
-            rows.extend([i] * stencil_size)
-            cols.extend(indices)
+            stencil_indices = self._get_stencil_indices(i, N, stencil_size)
+            stencil_points = values[stencil_indices] - values[i]
+            A = np.vander(stencil_points, increasing=True).T
+            b = np.zeros(stencil_size)
+            b[self.derivative_order] = factorial(self.derivative_order)
+            stencil, _, _, _ = lstsq(A, b)  # Use least squares for better numerical accuracy
 
+            data.extend(stencil)
+            rows.extend([i] * stencil_size)
+            cols.extend(stencil_indices)
+
+        # Create sparse matrix using the computed stencil
         derivative_matrix = sparse.coo_matrix((data, (rows, cols)), shape=(N, N))
         return derivative_matrix.tocsr()
 
-    def _compute_weights(self, x_points, x0):
-        # Calculate weights for non-uniform grid using finite difference coefficients
-        order = self.derivative_order
-        n = len(x_points)
-        A = np.vander(x_points - x0, n, increasing=True).T
-        b = np.zeros(n)
-        b[order] = factorial(order)
-        weights = np.linalg.solve(A, b)
-        return weights
+    def _get_stencil_indices(self, i, N, stencil_size):
+        half_size = stencil_size // 2
+        if i < half_size:
+            # Use asymmetric stencil near the start
+            return np.arange(0, stencil_size)
+        elif i >= N - half_size:
+            # Use asymmetric stencil near the end
+            return np.arange(N - stencil_size, N)
+        else:
+            # Use symmetric stencil in the middle
+            return np.arange(i - half_size, i + half_size + 1)
 
+    def _compute_weights(self, stencil_points, order):
+        A = np.vander(stencil_points, increasing=True).T
+        b = np.zeros(len(stencil_points))
+        b[order] = factorial(order)
+        weights, _, _, _ = lstsq(A, b)  # Use least squares for better numerical accuracy
+        return weights
+    
