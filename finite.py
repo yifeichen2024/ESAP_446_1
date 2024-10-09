@@ -29,7 +29,7 @@ class Difference:
 
 '''
 Take derivatives of functions defined over a UniformPeriodicGrid
-hw2_test1
+hw2_test1.py
 '''
 class DifferenceUniformGrid(Difference):
 
@@ -77,7 +77,7 @@ class DifferenceUniformGrid(Difference):
     
 '''
 Take derivatives of functions defined over a NonUniformPeriodicGrid
-hw2_test1
+hw2_test2.py
 '''
 class DifferenceNonUniformGrid(Difference):
     def __init__(self, derivative_order, convergence_order, grid, axis=0, stencil_type='centered'):
@@ -104,7 +104,7 @@ class DifferenceNonUniformGrid(Difference):
             A = np.vander(stencil_points, increasing=True).T
             b = np.zeros(stencil_size)
             b[self.derivative_order] = factorial(self.derivative_order)
-            stencil, _, _, _ = lstsq(A, b)  # Use least squares for better numerical accuracy
+            stencil, _, _, _ = lstsq(A, b)  # least square
 
             data.extend(stencil)
             rows.extend([i] * stencil_size)
@@ -117,13 +117,13 @@ class DifferenceNonUniformGrid(Difference):
     def _get_stencil_indices(self, i, N, stencil_size):
         half_size = stencil_size // 2
         if i < half_size:
-            # Use asymmetric stencil near the start
+            # asymmetric stencil near the start
             return np.arange(0, stencil_size)
         elif i >= N - half_size:
-            # Use asymmetric stencil near the end
+            # asymmetric stencil near the end
             return np.arange(N - stencil_size, N)
         else:
-            # Use symmetric stencil in the middle
+            # symmetric stencil in the middle
             return np.arange(i - half_size, i + half_size + 1)
 
     def _compute_weights(self, stencil_points, order):
