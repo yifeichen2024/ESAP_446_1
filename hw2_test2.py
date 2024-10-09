@@ -46,6 +46,45 @@ def test_NUFD_2(order_index):
 
     assert error < error_est
 
+@pytest.mark.parametrize('order_index', np.arange(4))
+def test_NUFD_2_alternative(order_index):
+    order = order_range[order_index]
+    values = np.sort(np.random.uniform(0, 2 * np.pi, 150))  
+    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
+    x = grid.values
+
+    f = np.cos(x) 
+
+    d2 = finite.DifferenceNonUniformGrid(2, order, grid)
+
+    d2f = d2 @ f
+    d2f0 = -np.cos(x) # -cos(x)
+
+    error = np.max(np.abs(d2f - d2f0))
+    error_est = error_bound_2_nonuniform[order_index]
+
+    assert error < error_est
+
+@pytest.mark.parametrize('order_index', np.arange(4))
+def test_NUFD_1_high_resolution(order_index):
+    order = order_range[order_index]
+    values = np.sort(np.random.uniform(0, 2 * np.pi, 200))  
+    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
+    x = grid.values
+
+    f = np.exp(-x)  # 使用指数函数
+
+    d1 = finite.DifferenceNonUniformGrid(1, order, grid)
+
+    d1f = d1 @ f
+    d1f0 = -np.exp(-x)  # 计算理论一阶导数值
+
+    error = np.max(np.abs(d1f - d1f0))
+    error_est = error_bound_1_nonuniform[order_index]
+
+    assert error < error_est
+
+
 error_bound_3_nonuniform = [0.1, 0.002, 1e-03, 5e-05]
 # error_bound_3_nonuniform = [0.026372498378231357, 0.0007845734749516997, 3.823640687972141e-05, 2.7946235658937724e-06]
 @pytest.mark.parametrize('order_index', np.arange(4))
