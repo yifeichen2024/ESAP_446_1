@@ -1,130 +1,72 @@
+
 import pytest
 import numpy as np
 import finite
 
 order_range = [2, 4, 6, 8]
 
-error_bound_1_nonuniform = [0.02, 0.005, 2e-05, 2e-07]
+error_bound_1 = [0.003487359345263997, 7.2859015893244896e-06, 1.626790011920982e-08, 3.753470375790787e-11]
 
 @pytest.mark.parametrize('order_index', np.arange(4))
-def test_NUFD(order_index):
+def test_FD(order_index):
     order = order_range[order_index]
-    values = np.sort(np.random.uniform(0, 2 * np.pi, 100))
-    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
-    x = grid.values
+    x = np.linspace(0, 1, 100, endpoint=False)
+    y = 2*np.pi*(x + 0.1*np.sin(2*np.pi*x))
+    grid = finite.NonUniformPeriodicGrid(y, 2*np.pi)
 
-    f = 1 / (2 + np.sin(x) ** 2)
+    f = np.sin(y)
 
     d = finite.DifferenceNonUniformGrid(1, order, grid)
 
     df = d @ f
-    df0 = -((2 * np.cos(x) * np.sin(x)) / (2 + np.sin(x) ** 2) ** 2)
+    df0 = np.cos(y)
 
     error = np.max(np.abs(df - df0))
-    error_est = error_bound_1_nonuniform[order_index]
+    error_est = error_bound_1[order_index]
 
     assert error < error_est
 
-error_bound_2_nonuniform = [0.01, 0.0005, 5e-06, 1e-06]
-# error_bound_2_nonuniform = [0.002460084948765484, 2.8916785483446006e-05, 7.619883177767406e-07, 3.4954780403495533e-08]
-@pytest.mark.parametrize('order_index', np.arange(4))
-def test_NUFD_2(order_index):
-    order = order_range[order_index]
-    values = np.sort(np.random.uniform(0, 2 * np.pi, 100))
-    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
-    x = grid.values
+error_bound_2 = [0.0016531241262078115, 3.953150377056438e-06, 1.01879280197617e-08, 2.6460656709051168e-11]
 
-    f = 1 / (2 + np.sin(x) ** 2)
+order_range_odd = [1, 3, 5, 7]
+
+@pytest.mark.parametrize('order_index', np.arange(4))
+def test_FD_2(order_index):
+    order = order_range_odd[order_index]
+    x = np.linspace(0, 1, 100, endpoint=False)
+    y = 2*np.pi*(x + 0.1*np.sin(2*np.pi*x))
+    grid = finite.NonUniformPeriodicGrid(y, 2*np.pi)
+
+    f = np.sin(y)
 
     d2 = finite.DifferenceNonUniformGrid(2, order, grid)
 
     d2f = d2 @ f
-    d2f0 = (8 * np.cos(x) ** 2 * np.sin(x) ** 2) / (2 + np.sin(x) ** 2) ** 3 - (2 * np.cos(x) ** 2) / (2 + np.sin(x) ** 2) ** 2 + (2 * np.sin(x) ** 2) / (2 + np.sin(x) ** 2) ** 2
+    d2f0 = -np.sin(y)
 
     error = np.max(np.abs(d2f - d2f0))
-    error_est = error_bound_2_nonuniform[order_index]
+    error_est = error_bound_2[order_index]
 
     assert error < error_est
 
-@pytest.mark.parametrize('order_index', np.arange(4))
-def test_NUFD_2_alternative(order_index):
-    order = order_range[order_index]
-    values = np.sort(np.random.uniform(0, 2 * np.pi, 150))  
-    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
-    x = grid.values
-
-    f = np.cos(x) 
-
-    d2 = finite.DifferenceNonUniformGrid(2, order, grid)
-
-    d2f = d2 @ f
-    d2f0 = -np.cos(x) # -cos(x)
-
-    error = np.max(np.abs(d2f - d2f0))
-    error_est = error_bound_2_nonuniform[order_index]
-
-    assert error < error_est
+error_bound_3 = [0.005224671143882285, 1.2706445107820117e-05, 3.067306559578247e-08, 7.409826640410579e-11]
 
 @pytest.mark.parametrize('order_index', np.arange(4))
-def test_NUFD_1_high_resolution(order_index):
+def test_FD_3(order_index):
     order = order_range[order_index]
-    values = np.sort(np.random.uniform(0, 2 * np.pi, 200))  
-    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
-    x = grid.values
+    x = np.linspace(0, 1, 100, endpoint=False)
+    y = 2*np.pi*(x + 0.1*np.sin(2*np.pi*x))
+    grid = finite.NonUniformPeriodicGrid(y, 2*np.pi)
 
-    f = np.exp(-x)  # 使用指数函数
-
-    d1 = finite.DifferenceNonUniformGrid(1, order, grid)
-
-    d1f = d1 @ f
-    d1f0 = -np.exp(-x)  # 计算理论一阶导数值
-
-    error = np.max(np.abs(d1f - d1f0))
-    error_est = error_bound_1_nonuniform[order_index]
-
-    assert error < error_est
-
-
-error_bound_3_nonuniform = [0.1, 0.002, 1e-03, 5e-05]
-# error_bound_3_nonuniform = [0.026372498378231357, 0.0007845734749516997, 3.823640687972141e-05, 2.7946235658937724e-06]
-@pytest.mark.parametrize('order_index', np.arange(4))
-def test_NUFD_3(order_index):
-    order = order_range[order_index]
-    values = np.sort(np.random.uniform(0, 2 * np.pi, 100))
-    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
-    x = grid.values
-
-    f = 1 / (2 + np.sin(x) ** 2)
+    f = np.sin(y)
 
     d3 = finite.DifferenceNonUniformGrid(3, order, grid)
 
     d3f = d3 @ f
-    d3f0 = (2 * np.cos(x) ** 3 * (37 * np.sin(x) + np.sin(3 * x))) / (2 + np.sin(x) ** 2) ** 4
+    d3f0 = -np.cos(y)
 
     error = np.max(np.abs(d3f - d3f0))
-    error_est = error_bound_3_nonuniform[order_index]
+    error_est = error_bound_3[order_index]
 
     assert error < error_est
 
-# Extreme non-uniform grid test
-error_bound_extreme_nonuniform = [0.1, 0.005, 1e-03, 5e-05]
-
-@pytest.mark.parametrize('order_index', np.arange(4))
-def test_NUFD_extreme(order_index):
-    order = order_range[order_index]
-    # Create an extreme non-uniform grid with large variations in spacing
-    values = np.concatenate((np.linspace(0, np.pi, 50), np.linspace(np.pi + 0.1, 2 * np.pi, 50)))
-    grid = finite.NonUniformPeriodicGrid(values, 2 * np.pi)
-    x = grid.values
-
-    f = 1 / (2 + np.sin(x) ** 2)
-
-    d = finite.DifferenceNonUniformGrid(1, order, grid)
-
-    df = d @ f
-    df0 = -((2 * np.cos(x) * np.sin(x)) / (2 + np.sin(x) ** 2) ** 2)
-
-    error = np.max(np.abs(df - df0))
-    error_est = error_bound_extreme_nonuniform[order_index]
-
-    assert error < error_est
