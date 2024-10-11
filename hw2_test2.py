@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 import finite
 
+
 order_range = [2, 4, 6, 8]
 
 error_bound_1 = [0.003487359345263997, 7.2859015893244896e-06, 1.626790011920982e-08, 3.753470375790787e-11]

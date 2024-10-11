@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.special import factorial
 from scipy import sparse
-from scipy.linalg import lstsq, solve
+from scipy.linalg import lstsq, svd
+import mpmath
 
 class UniformPeriodicGrid:
 
@@ -87,13 +88,13 @@ class DifferenceNonUniformGrid(Difference):
         self.stencil_type = stencil_type
         self.axis = axis
         self.grid = grid
-        np.random.seed(42)
+        # np.random.seed(42)
         self.matrix = self._construct_derivative_matrix()
 
     def _construct_derivative_matrix(self):
         N = self.grid.N
         values = self.grid.values
-        stencil_size = 2 * self.convergence_order + 1
+        stencil_size = min(2 * self.convergence_order + 3, N)  # Increase stencil size for better accuracy
         data = []
         rows = []
         cols = []
@@ -104,26 +105,38 @@ class DifferenceNonUniformGrid(Difference):
             A = np.vander(stencil_points, increasing=True).T
             b = np.zeros(stencil_size)
             b[self.derivative_order] = factorial(self.derivative_order)
-            stencil, _, _, _ = lstsq(A, b)  # least square
+
+            # Use high precision solver for better numerical stability
+            with mpmath.workdps(100):
+                A_mp = mpmath.matrix(A)
+                b_mp = mpmath.matrix(b)
+                stencil_mp = mpmath.lu_solve(A_mp, b_mp)
+            stencil = np.array(stencil_mp, dtype=np.float64)
+
+            # # Use SVD for better numerical stability
+            # U, s, Vt = svd(A, full_matrices=False)
+            # # c = np.dot(U.T, b) / s
+            # c = np.dot(U.T, b) / (s + 1e-12)  # Adding a higher value to s to improve stability
+            # stencil = np.dot(Vt.T, c)
 
             data.extend(stencil)
             rows.extend([i] * stencil_size)
             cols.extend(stencil_indices)
 
-        # Create sparse matrix using the computed stencil
+            # Create sparse matrix using the computed stencil
         derivative_matrix = sparse.coo_matrix((data, (rows, cols)), shape=(N, N))
         return derivative_matrix.tocsr()
 
     def _get_stencil_indices(self, i, N, stencil_size):
         half_size = stencil_size // 2
         if i < half_size:
-            # asymmetric stencil near the start
+            # Use asymmetric stencil near the start
             return np.arange(0, stencil_size)
         elif i >= N - half_size:
-            # asymmetric stencil near the end
+            # Use asymmetric stencil near the end
             return np.arange(N - stencil_size, N)
         else:
-            # symmetric stencil in the middle
+            # Use symmetric stencil in the middle
             return np.arange(i - half_size, i + half_size + 1)
 
     def _compute_weights(self, stencil_points, order):
