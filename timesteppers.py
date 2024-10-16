@@ -1,5 +1,5 @@
 import numpy as np
-
+from scipy import sparse
 class Timestepper:
 
     def __init__(self):
