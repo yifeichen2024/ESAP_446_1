@@ -119,5 +119,9 @@ class AdamsBashforth(ExplicitTimestepper):
             return [23/12, -16/12, 5/12]
         elif self.steps == 4:
             return [55/24, -59/24, 37/24, -9/24]
+        elif self.steps == 5:
+            return [1901/720, -1387/360, 109/30, -637/360, 251/720]
+        elif self.steps == 6:
+            return [4277/1440, -2641/480, 4991/720, -3649/720, 959/480, -95/288]
         else:
-            raise ValueError("Adams-Bashforth method only implemented for up to 4 steps.")
+            raise ValueError("Adams-Bashforth method only implemented for up to 6 steps.")
