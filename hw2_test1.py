@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-import finite
+import finite # _solution as finite
 
 order_range = [2, 4, 6, 8]
 
