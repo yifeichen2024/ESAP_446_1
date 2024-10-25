@@ -2,7 +2,7 @@
 import pytest
 import numpy as np
 import finite
-import timesteppers 
+import timesteppers
 
 resolution_list = [100, 200, 400]
 
