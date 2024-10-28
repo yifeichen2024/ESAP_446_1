@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 from scipy import sparse
 import scipy.sparse.linalg as spla
 from scipy.sparse import csc_matrix
@@ -6,6 +7,22 @@ from scipy.sparse.linalg import splu
 import math
 import finite
 
+
+# from __future__ import annotations
+
+from abc import ABCMeta, abstractmethod
+from collections import deque
+from functools import cache
+from typing import Any, Callable, Optional, cast
+
+import numpy as np
+import scipy.sparse.linalg as spla  # type: ignore
+from numpy.typing import NDArray
+from scipy import sparse  # type: ignore
+from scipy.special import factorial  # type: ignore
+
+# from farray import apply_matrix, axslice
+from finite import Difference
 
 class Timestepper:
 
@@ -166,136 +183,179 @@ class CrankNicolson(ImplicitTimestepper):
         return self.LU.solve(self.RHS @ self.u)
 
 
-class BackwardDifferentiationFormula(ImplicitTimestepper):
-    def __init__(self, u, L, steps):
-        super().__init__(u, L)
-        self.steps = steps  # Order of the BDF method
-        self.history_u = []  # Stores previous u values
-        self.history_dt = []  # Stores previous timestep sizes
-        self.coefficients = None  # BDF coefficients
-        self.L_matrix = L.matrix  # The operator L as a matrix
-        self.LU = None  # LU decomposition of the LHS matrix
-        self.I = sparse.eye(self.L_matrix.shape[0], format='csc')  # Identity matrix
-        self.dt = None  # Previous timestep size
+class BackwardDifferentiationFormula(Timestepper):
+    steps: int
+    thist: list[float]
+    uhist: list[NDArray[np.float64]]
+
+    def __init__(self, u: NDArray[np.float64], L_op: Difference, steps: int):
+        super().__init__()
+        self.u = u
+        self.func = L_op
+        self.steps = steps
+        self.thist = []
+        self.uhist = []
+
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        self.thist.append(dt)
+        self.uhist.append(self.u)
+        steps = min(self.steps, len(self.uhist))
+        solve = self._coeff(tuple(self.thist[-steps:]))
+        return solve(np.stack(self.uhist[-steps:], axis=1))
+
+    @cache
+    def _coeff(
+        self, thist: tuple[float, ...]
+    ) -> Callable[[NDArray[np.float64]], NDArray[np.float64]]:
+        (N,) = self.u.shape
+        steps = len(thist)
+        x = np.cumsum(np.array((0,) + thist))
+        xx = x[-1]
+        x /= xx
+        coeff = np.zeros((steps + 1,))
+        for i in range(steps + 1):
+            poly = np.array([1.0])
+            for j in range(steps + 1):
+                if i != j:
+                    poly = np.convolve(poly, np.array([1.0, -x[j]]))
+                    poly /= x[i] - x[j]
+            poly = poly[:-1] * np.arange(steps, 0, -1)
+            coeff[i] = poly @ (x[-1] ** np.arange(steps - 1, -1, -1))
+        coeff /= xx
+        lu = spla.splu(self.func.matrix - coeff[-1] * sparse.eye(N, N))
+        return lambda u: cast(NDArray[np.float64], lu.solve(u @ coeff[:-1]))
+
+
+# class BackwardDifferentiationFormula(ImplicitTimestepper):
+#     def __init__(self, u, L, steps):
+#         super().__init__(u, L)
+#         self.steps = steps  # Order of the BDF method
+#         self.history_u = []  # Stores previous u values
+#         self.history_dt = []  # Stores previous timestep sizes
+#         self.coefficients = None  # BDF coefficients
+#         self.L_matrix = L.matrix  # The operator L as a matrix
+#         self.LU = None  # LU decomposition of the LHS matrix
+#         self.I = sparse.eye(self.L_matrix.shape[0], format='csc')  # Identity matrix
+#         self.dt = None  # Previous timestep size
 
         
-    # def compute_coefficients(self, dt_list):
-    #     s = len(dt_list)
-    #     if not all(dt == dt_list[0] for dt in dt_list):
-    #         raise ValueError("Variable timesteps not supported in this implementation.")
+#     # def compute_coefficients(self, dt_list):
+#     #     s = len(dt_list)
+#     #     if not all(dt == dt_list[0] for dt in dt_list):
+#     #         raise ValueError("Variable timesteps not supported in this implementation.")
     
-    #     if s == 1:
-    #         self.coefficients = np.array([1, -1])
-    #     elif s == 2:
-    #         self.coefficients = np.array([3/2, -2, 1/2])
-    #     elif s == 3:
-    #         self.coefficients = np.array([11/6, -3, 3/2, -1/3])
-    #     elif s == 4:
-    #         self.coefficients = np.array([25/12, -4, 3, -4/3, 1/4])
-    #     elif s == 5:
-    #         self.coefficients = np.array([137/60, -5, 5/2, -5/3, 5/12, -1/5])
-    #     elif s == 6:
-    #         self.coefficients = np.array([147/60, -6, 5, -10/3, 5/2, -6/5, 1/6])
-    #     else:
-    #         raise ValueError("Unsupported number of steps for BDF method.")
+#     #     if s == 1:
+#     #         self.coefficients = np.array([1, -1])
+#     #     elif s == 2:
+#     #         self.coefficients = np.array([3/2, -2, 1/2])
+#     #     elif s == 3:
+#     #         self.coefficients = np.array([11/6, -3, 3/2, -1/3])
+#     #     elif s == 4:
+#     #         self.coefficients = np.array([25/12, -4, 3, -4/3, 1/4])
+#     #     elif s == 5:
+#     #         self.coefficients = np.array([137/60, -5, 5/2, -5/3, 5/12, -1/5])
+#     #     elif s == 6:
+#     #         self.coefficients = np.array([147/60, -6, 5, -10/3, 5/2, -6/5, 1/6])
+#     #     else:
+#     #         raise ValueError("Unsupported number of steps for BDF method.")
 
-    def compute_coefficients(self, dt_list):
-        """
-        Computes BDF coefficients for variable timesteps.
-        """
-        s = len(dt_list)
-        k = np.arange(1, s+1)
-        dt_ratios = np.array(dt_list[-s:]) / dt_list[-1]
-        gamma = np.ones(s+1)
-        for j in range(1, s+1):
-            gamma[j] = gamma[j-1] * dt_ratios[-j]
+#     def compute_coefficients(self, dt_list):
+#         """
+#         Computes BDF coefficients for variable timesteps.
+#         """
+#         s = len(dt_list)
+#         k = np.arange(1, s+1)
+#         dt_ratios = np.array(dt_list[-s:]) / dt_list[-1]
+#         gamma = np.ones(s+1)
+#         for j in range(1, s+1):
+#             gamma[j] = gamma[j-1] * dt_ratios[-j]
 
-        # Build the Vandermonde matrix
-        A = np.zeros((s+1, s+1))
-        for i in range(s+1):
-            A[i, :] = np.power(-k, i)
-        b = np.zeros(s+1)
-        b[1] = -1  # Corresponds to the derivative term
+#         # Build the Vandermonde matrix
+#         A = np.zeros((s+1, s+1))
+#         for i in range(s+1):
+#             A[i, :] = np.power(-k, i)
+#         b = np.zeros(s+1)
+#         b[1] = -1  # Corresponds to the derivative term
 
-        # Solve for the coefficients
-        self.coefficients = np.linalg.solve(A, b)
+#         # Solve for the coefficients
+#         self.coefficients = np.linalg.solve(A, b)
 
-    def runge_kutta_step(self, dt):
-        # 4th-order Runge–Kutta method
-        k1 = dt * self.L_matrix.dot(self.u)
-        k2 = dt * self.L_matrix.dot(self.u + 0.5 * k1)
-        k3 = dt * self.L_matrix.dot(self.u + 0.5 * k2)
-        k4 = dt * self.L_matrix.dot(self.u + k3)
-        return self.u + (1/6) * (k1 + 2 * k2 + 2 * k3 + k4)
+#     def runge_kutta_step(self, dt):
+#         # 4th-order Runge–Kutta method
+#         k1 = dt * self.L_matrix.dot(self.u)
+#         k2 = dt * self.L_matrix.dot(self.u + 0.5 * k1)
+#         k3 = dt * self.L_matrix.dot(self.u + 0.5 * k2)
+#         k4 = dt * self.L_matrix.dot(self.u + k3)
+#         return self.u + (1/6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
-    def CrankNicolson(self, dt):
-        if dt != self.dt:
-            self.LHS = self.I - dt/2*self.L.matrix
-            self.RHS = self.I + dt/2*self.L.matrix
-            self.LU = spla.splu(self.LHS.tocsc(), permc_spec='NATURAL')
-        return self.LU.solve(self.RHS @ self.u)
+#     def CrankNicolson(self, dt):
+#         if dt != self.dt:
+#             self.LHS = self.I - dt/2*self.L.matrix
+#             self.RHS = self.I + dt/2*self.L.matrix
+#             self.LU = spla.splu(self.LHS.tocsc(), permc_spec='NATURAL')
+#         return self.LU.solve(self.RHS @ self.u)
 
-    def trapezoidal_step(self, dt):
-        """
-        Trapezoidal method for the initial steps.
-        """
-        if self.dt != dt or not hasattr(self, 'LU'):
-            self.LHS = self.I - dt / 2 * self.L_matrix
-            self.RHS_matrix = self.I + dt / 2 * self.L_matrix
-            self.LU = spla.splu(self.LHS)
-            self.dt = dt  # Update stored dt
+#     def trapezoidal_step(self, dt):
+#         """
+#         Trapezoidal method for the initial steps.
+#         """
+#         if self.dt != dt or not hasattr(self, 'LU'):
+#             self.LHS = self.I - dt / 2 * self.L_matrix
+#             self.RHS_matrix = self.I + dt / 2 * self.L_matrix
+#             self.LU = spla.splu(self.LHS)
+#             self.dt = dt  # Update stored dt
 
-        # Compute RHS
-        RHS = self.RHS_matrix.dot(self.u)
+#         # Compute RHS
+#         RHS = self.RHS_matrix.dot(self.u)
 
-        # Solve the linear system
-        return self.LU.solve(RHS)
+#         # Solve the linear system
+#         return self.LU.solve(RHS)
     
-    def _step(self, dt):
-        # Update the timestep history
-        self.history_dt.append(dt)
-        if len(self.history_dt) > self.steps:
-            self.history_dt.pop(0)
+#     def _step(self, dt):
+#         # Update the timestep history
+#         self.history_dt.append(dt)
+#         if len(self.history_dt) > self.steps:
+#             self.history_dt.pop(0)
 
-        # Update the solution history
-        self.history_u.append(self.u.copy())
-        if len(self.history_u) > self.steps:
-            self.history_u.pop(0)
+#         # Update the solution history
+#         self.history_u.append(self.u.copy())
+#         if len(self.history_u) > self.steps:
+#             self.history_u.pop(0)
 
-        # Check if we have enough steps to use the full BDF method
-        if len(self.history_u) < self.steps + 1:
-            self.u = self.trapezoidal_step(dt)
-            # # Use Crank–Nicolson method for initial steps
-            # if self.dt != dt or not hasattr(self, 'LU'):
-            #     self.LHS = self.I - dt / 2 * self.L_matrix
-            #     self.RHS_matrix = self.I + dt / 2 * self.L_matrix
-            #     self.LU = spla.splu(self.LHS)
-            #     self.dt = dt  # Update stored dt
+#         # Check if we have enough steps to use the full BDF method
+#         if len(self.history_u) < self.steps + 1:
+#             self.u = self.trapezoidal_step(dt)
+#             # # Use Crank–Nicolson method for initial steps
+#             # if self.dt != dt or not hasattr(self, 'LU'):
+#             #     self.LHS = self.I - dt / 2 * self.L_matrix
+#             #     self.RHS_matrix = self.I + dt / 2 * self.L_matrix
+#             #     self.LU = spla.splu(self.LHS)
+#             #     self.dt = dt  # Update stored dt
 
-            # # Compute RHS
-            # RHS = self.RHS_matrix.dot(self.u)
+#             # # Compute RHS
+#             # RHS = self.RHS_matrix.dot(self.u)
 
-            # Solve the linear system
-            # self.u = self.LU.solve(RHS)
-        else:
-            # We have enough steps; use BDF method
-            # Compute coefficients
-            dt_list = self.history_dt[-self.steps:]
-            self.compute_coefficients(dt_list)
-            coeffs = self.coefficients  # Array of length steps + 1
+#             # Solve the linear system
+#             # self.u = self.LU.solve(RHS)
+#         else:
+#             # We have enough steps; use BDF method
+#             # Compute coefficients
+#             dt_list = self.history_dt[-self.steps:]
+#             self.compute_coefficients(dt_list)
+#             coeffs = self.coefficients  # Array of length steps + 1
 
-            # Assemble LHS: coeffs[0] * I - L_matrix
-            LHS = coeffs[0] * self.I - self.L_matrix
+#             # Assemble LHS: coeffs[0] * I - L_matrix
+#             LHS = coeffs[0] * self.I - self.L_matrix
 
-            # Assemble RHS
-            RHS = np.zeros_like(self.u)
-            for i in range(1, self.steps + 1):
-                RHS -= coeffs[i] * self.history_u[-(i + 1)]
+#             # Assemble RHS
+#             RHS = np.zeros_like(self.u)
+#             for i in range(1, self.steps + 1):
+#                 RHS -= coeffs[i] * self.history_u[-(i + 1)]
 
-            # Solve the linear system
-            self.LU = spla.cg(LHS)
-            self.u = self.LU.solve(RHS)
+#             # Solve the linear system
+#             self.LU = spla.cg(LHS)
+#             self.u = self.LU.solve(RHS)
 
-        # Return the updated solution
-        return self.u
+#         # Return the updated solution
+#         return self.u
     
