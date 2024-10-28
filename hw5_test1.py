@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import finite
-import timesteppers_hw5 as timesteppers
+import timesteppers
 import equations
 
 resolution_list = [100, 200, 400]
