@@ -65,6 +65,13 @@ class Wave:
 #         pass
 
 class SoundWave(EquationSet):
+    '''
+    The perturbation equation for an ideal gas in one dimension
+    Given numpy array for u and p
+    Make a statevector X, matrices L and M, and function F for calculating RHS terms
+explicitly.
+    Testing P_0 and gamma p_0 are constant, as well as cases where they are spatially
+    '''
     def __init__(
         self,
         u: NDArray[np.float64],
@@ -74,7 +81,7 @@ class SoundWave(EquationSet):
         gammap0: Union[float, NDArray[np.float64]],
     ):
         (N,) = u.shape
-        I = sparse.eye(N, N)  # noqa: E741
+        I = sparse.eye(N, N) 
         Z = sparse.csr_matrix((N, N))
         self.X = StateVector([u, p])
         self.M = sparse.bmat([[rho0 * sparse.csc_array(I), Z], [Z, I]])
@@ -83,6 +90,11 @@ class SoundWave(EquationSet):
 
 
 class ReactionDiffusion(EquationSet):
+    '''
+    One-dimensional reaction-diffusion
+    Specify the statevector X matrices M and L, and function F for calculating 
+    Test cases where C_target is either constant, or spatially varying.
+    '''
     def __init__(
         self,
         c: NDArray[np.float64],

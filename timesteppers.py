@@ -228,31 +228,50 @@ class BackwardDifferentiationFormula(Timestepper):
 
 
 
-class StateVector:
-    data: NDArray[np.float64]
+# class StateVector:
+#     data: NDArray[np.float64]
 
-    def __init__(self, variables: list[NDArray[np.float64]], axis: int = 0):
-        self.axis = axis
+#     def __init__(self, variables: list[NDArray[np.float64]], axis: int = 0):
+#         self.axis = axis
+#         var0 = variables[0]
+#         shape = list(var0.shape)
+#         self.N = shape[axis]
+#         shape[axis] *= len(variables)
+#         self.shape = tuple(shape)
+#         self.data = np.zeros(shape)
+#         self.variables = variables
+#         self.gather()
+
+#     def gather(self) -> None:
+#         for i, var in enumerate(self.variables):
+#             np.copyto(  # type: ignore
+#                 self.data[axslice(self.axis, i * self.N, (i + 1) * self.N)], var
+#             )
+
+#     def scatter(self) -> None:
+#         for i, var in enumerate(self.variables):
+#             np.copyto(  # type: ignore
+#                 var, self.data[axslice(self.axis, i * self.N, (i + 1) * self.N)]
+#             )
+
+class StateVector:
+    
+    def __init__(self, variables):
         var0 = variables[0]
-        shape = list(var0.shape)
-        self.N = shape[axis]
-        shape[axis] *= len(variables)
-        self.shape = tuple(shape)
-        self.data = np.zeros(shape)
+        self.N = len(var0)
+        size = self.N*len(variables)
+        self.data = np.zeros(size)
         self.variables = variables
         self.gather()
 
-    def gather(self) -> None:
+    def gather(self):
         for i, var in enumerate(self.variables):
-            np.copyto(  # type: ignore
-                self.data[axslice(self.axis, i * self.N, (i + 1) * self.N)], var
-            )
+            np.copyto(self.data[i*self.N:(i+1)*self.N], var)
 
-    def scatter(self) -> None:
+    def scatter(self):
         for i, var in enumerate(self.variables):
-            np.copyto(  # type: ignore
-                var, self.data[axslice(self.axis, i * self.N, (i + 1) * self.N)]
-            )
+            np.copyto(var, self.data[i*self.N:(i+1)*self.N])
+
 
 class EquationSet(metaclass=ABCMeta):
     X: StateVector
@@ -261,71 +280,122 @@ class EquationSet(metaclass=ABCMeta):
     F: Optional[Callable[[StateVector], NDArray[np.float64]]]
 
 
-class IMEXTimestepper(metaclass=ABCMeta):
-    t: float
-    iter: int
-    X: StateVector
-    M: NDArray[np.float64]
-    L: NDArray[np.float64]
-    dt: Optional[float]
+class IMEXTimestepper(Timestepper):
 
-    @abstractmethod
-    def _step(self, dt: float) -> NDArray[np.float64]:
-        pass
-
-    def __init__(self, eq_set: EquationSet):
-        assert eq_set.F is not None
-        self.t = 0
-        self.iter = 0
+    def __init__(self, eq_set):
+        super().__init__()
         self.X = eq_set.X
         self.M = eq_set.M
         self.L = eq_set.L
         self.F = eq_set.F
-        self.dt = None
 
-    def evolve(self, dt: float, time: float) -> None:
-        while self.t < time - 1e-8:
-            self.step(dt)
-
-    def step(self, dt: float) -> None:
-        self.X.gather()
+    def step(self, dt):
         self.X.data = self._step(dt)
         self.X.scatter()
+        self.dt = dt
         self.t += dt
         self.iter += 1
 
+
+# class IMEXTimestepper(metaclass=ABCMeta):
+#     t: float
+#     iter: int
+#     X: StateVector
+#     M: NDArray[np.float64]
+#     L: NDArray[np.float64]
+#     dt: Optional[float]
+
+#     @abstractmethod
+#     def _step(self, dt: float) -> NDArray[np.float64]:
+#         pass
+
+#     def __init__(self, eq_set: EquationSet):
+#         assert eq_set.F is not None
+#         self.t = 0
+#         self.iter = 0
+#         self.X = eq_set.X
+#         self.M = eq_set.M
+#         self.L = eq_set.L
+#         self.F = eq_set.F
+#         self.dt = None
+
+#     def evolve(self, dt: float, time: float) -> None:
+#         while self.t < time - 1e-8:
+#             self.step(dt)
+
+#     def step(self, dt: float) -> None:
+#         self.X.gather()
+#         self.X.data = self._step(dt)
+#         self.X.scatter()
+#         self.t += dt
+#         self.iter += 1
+
+
+
+
 class CNAB(IMEXTimestepper):
-    def _step(self, dt: float) -> NDArray[np.float64]:
-        LHS: Any
-        RHS: NDArray[np.float64]
+
+    def _step(self, dt):
         if self.iter == 0:
             # Euler
-            LHS = self.M + dt * self.L
-            LU = spla.splu(LHS.tocsc(), permc_spec="NATURAL")
+            LHS = self.M + dt*self.L
+            LU = spla.splu(LHS.tocsc(), permc_spec='NATURAL')
 
             self.FX = self.F(self.X)
-            RHS = cast(NDArray[np.float64], self.M @ self.X.data) + dt * self.FX
+            RHS = self.M @ self.X.data + dt*self.FX
             self.FX_old = self.FX
-            return cast(NDArray[np.float64], LU.solve(RHS))
+            return LU.solve(RHS)
         else:
-            if dt != self.dt:
-                LHS = self.M + dt / 2 * self.L
-                self.LU = spla.splu(LHS.tocsc(), permc_spec="NATURAL")
-            self.dt = dt
+            if dt != self.dt or self.iter == 1:
+                LHS = self.M + dt/2*self.L
+                self.LU = spla.splu(LHS.tocsc(), permc_spec='NATURAL')
 
             self.FX = self.F(self.X)
-            RHS = (
-                cast(NDArray[np.float64], self.M @ self.X.data)
-                - cast(NDArray[np.float64], 0.5 * dt * self.L @ self.X.data)
-                + cast(NDArray[np.float64], 3 / 2 * dt * self.FX)
-                - cast(NDArray[np.float64], 1 / 2 * dt * self.FX_old)
-            )
+            RHS = self.M @ self.X.data - 0.5*dt*self.L @ self.X.data + 3/2*dt*self.FX - 1/2*dt*self.FX_old
             self.FX_old = self.FX
-            return cast(NDArray[np.float64], self.LU.solve(RHS))
+            return self.LU.solve(RHS)
+        
+
+# class CNAB(IMEXTimestepper):
+#     def _step(self, dt: float) -> NDArray[np.float64]:
+#         LHS: Any
+#         RHS: NDArray[np.float64]
+#         if self.iter == 0:
+#             # Euler
+#             LHS = self.M + dt * self.L
+#             LU = spla.splu(LHS.tocsc(), permc_spec="NATURAL")
+
+#             self.FX = self.F(self.X)
+#             RHS = cast(NDArray[np.float64], self.M @ self.X.data) + dt * self.FX
+#             self.FX_old = self.FX
+#             return cast(NDArray[np.float64], LU.solve(RHS))
+#         else:
+#             if dt != self.dt:
+#                 LHS = self.M + dt / 2 * self.L
+#                 self.LU = spla.splu(LHS.tocsc(), permc_spec="NATURAL")
+#             self.dt = dt
+
+#             self.FX = self.F(self.X)
+#             RHS = (
+#                 cast(NDArray[np.float64], self.M @ self.X.data)
+#                 - cast(NDArray[np.float64], 0.5 * dt * self.L @ self.X.data)
+#                 + cast(NDArray[np.float64], 3 / 2 * dt * self.FX)
+#                 - cast(NDArray[np.float64], 1 / 2 * dt * self.FX_old)
+#             )
+#             self.FX_old = self.FX
+#             return cast(NDArray[np.float64], self.LU.solve(RHS))
 
 
 
 class BDFExtrapolate(IMEXTimestepper):
+    '''
+    HW5 Part1
+    Calculates the future value of X, denoted by X^n, using the current value X^{n-1}.
+    and past values.
+
+    _coeff(): Coefficient a and b are found via Taylor expansion 
+    
+    '''
     coeffs: list[tuple[NDArray[np.float64], NDArray[np.float64]]] = []
     xhist: list[NDArray[np.float64]]
     fhist: list[NDArray[np.float64]]
