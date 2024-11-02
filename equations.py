@@ -6,12 +6,13 @@ from typing import Any, Callable, Union, cast
 
 from finite import (
     Difference,
+    Domain,
     DifferenceNonUniformGrid,
     DifferenceUniformGrid,
     NonUniformPeriodicGrid,
     UniformPeriodicGrid,
 )
-from timesteppers import CrankNicolson, EquationSet, StateVector
+from timesteppers import CrankNicolson, EquationSet, StateVector, RK22
 
 
 class ViscousBurgers:
@@ -107,3 +108,37 @@ class ReactionDiffusion(EquationSet):
         self.M = sparse.eye(N, N)
         self.L = -D * d2.matrix
         self.F = lambda X: X.data * (c_target - X.data)
+
+
+class ReactionDiffusion2D(EquationSet):
+    def __init__(
+        self,
+        c: NDArray[np.float64],
+        D: float,
+        dx2: DifferenceUniformGrid,
+        dy2: DifferenceUniformGrid,
+    ):
+        self.t = 0.0
+        self.iter = 0
+        M, N = c.shape
+
+        self.X = StateVector([c])
+        self.F = lambda X: X.data * (1 - X.data)
+        self.tstep = RK22(self)
+
+        self.M = sparse.eye(M)
+        self.L = -D * sparse.csc_array(dx2.matrix)
+        self.xstep = CrankNicolson(self, 0)
+
+        self.M = sparse.eye(N)
+        self.L = -D * sparse.csc_array(dy2.matrix)
+        self.ystep = CrankNicolson(self, 1)
+
+    def step(self, dt: float) -> None:
+        self.xstep.step(dt / 2)
+        self.ystep.step(dt / 2)
+        self.tstep.step(dt)
+        self.ystep.step(dt / 2)
+        self.xstep.step(dt / 2)
+        self.t += dt
+        self.iter += 1

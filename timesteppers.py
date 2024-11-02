@@ -24,6 +24,8 @@ from scipy.special import factorial  # type: ignore
 from farray import apply_matrix, axslice
 from finite import Difference
 
+
+
 class Timestepper:
 
     def __init__(self):
@@ -278,6 +280,11 @@ class EquationSet(metaclass=ABCMeta):
     M: NDArray[np.float64]
     L: NDArray[np.float64]
     F: Optional[Callable[[StateVector], NDArray[np.float64]]]
+
+def RK22(eq_set: EquationSet) -> Multistage:
+    a = np.array([[0, 0], [1 / 2, 0]])
+    b = np.array([0, 1])
+    return Multistage(eq_set, 2, a, b)
 
 
 class IMEXTimestepper(Timestepper):

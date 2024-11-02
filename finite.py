@@ -4,6 +4,7 @@ from scipy.special import factorial
 from scipy import sparse
 from scipy.linalg import lstsq, svd
 import mpmath
+from farray import apply_matrix, reshape_vector
 
 class UniformPeriodicGrid:
 
@@ -41,7 +42,24 @@ class NonUniformPeriodicGrid:
             dx[i, :] = values_padded[jmin+i+j] - values_padded[jmin+i]
 
         return dx
-
+    
+class Domain:
+    def __init__(self, grids):
+        self.dimension = len(grids)
+        self.grids = grids
+        shape = []
+        for grid in self.grids:
+            shape.append(grid.N)
+            self.shape = shape
+    
+    def values(self):
+        v = []
+        for i, grid in enumerate(self.grids):
+            grid_v = grid.values
+            grid_v = reshape_vector(grid_v, self.dimension, i)
+            v.append(grid_v)
+        return v
+    
 class Difference:
     def __matmul__(self, other):
         return self.matrix @ other
