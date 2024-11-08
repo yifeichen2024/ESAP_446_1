@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
-import finite_solution as finite   
-import timesteppers_solution as timesteppers
-import equations_solution as equations
+import finite as finite   
+import timesteppers as timesteppers
+import equations as equations
 
 error_RD = {(50,0.5):3e-3, (50,0.25):2.5e-3, (50,0.125):2.5e-3,(100,0.5):4e-4, (100,0.25):2e-4, (100,0.125):1e-4, (200,0.5):8e-5, (200,0.25):2e-5, (200,0.125):5e-6}
 @pytest.mark.parametrize('resolution', [50, 100, 200])
