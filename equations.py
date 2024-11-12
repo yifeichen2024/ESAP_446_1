@@ -226,3 +226,98 @@ class ReactionDiffusion(EquationSet):
         self.M = sparse.eye(N, N)
         self.L = -D * d2.matrix
         self.F = lambda X: X.data * (c_target - X.data)
+
+class DiffusionBC(EquationSet):
+    @cache
+    def _crank_nicolson(self, dt: float) -> Callable[[], None]:
+        c = self.X.variables[0]
+        M, _ = c.shape
+        Mmat = sparse.lil_array(sparse.eye(M + 2))
+        Mmat[0, -2] = 1
+        Mmat[-3, -1] = 1
+        Lmat = sparse.lil_array((M + 2, M + 2))
+        Lmat[:M, :M] = -self.D * sparse.csc_array(self.d2x.matrix)
+        LHS = (Mmat + dt / 2 * Lmat).tolil()
+        RHS = (Mmat - dt / 2 * Lmat).tolil()
+        LHS[M:, :] = 0
+        RHS[M:, :] = 0
+        LHS[-2, 0] = 1
+        LHS[-1, :M] = self.dx.matrix[-1, :]
+        LU = spla.splu(LHS.tocsc())
+        RHS = RHS[:, :-2].tocsc()
+        return lambda: np.copyto(c, LU.solve(RHS @ c)[:-2, :])  # type: ignore
+
+    def __init__(
+        self,
+        c: NDArray[np.float64],
+        D: float,
+        spatial_order: int,
+        domain: Domain,
+    ) -> None:
+
+        self.dx = _diff_grid(1, spatial_order, domain.grids[0], 0)
+        self.d2x = _diff_grid(2, spatial_order, domain.grids[0], 0)
+        d2y = _diff_grid(2, spatial_order, domain.grids[1], 1)
+
+        self.t = 0.0
+        self.iter = 0
+        M, N = c.shape
+        self.D = D
+
+        self.X = StateVector([c])
+        # M*(C1-C0)/dt + L*(C1+C0)/2 == 0
+        # M*(C1-C0)/dt == -L*(C1+C0)/2
+        # M*(C1-C0)/dt == -L*(C1+C0)/2+d
+        # M*(C1-C0) == -dt*L/2*(C1+C0)+dt*d
+        # (M+dt*L/2)*C1-dt*d = (M-dt*L/2)*C0
+
+        # self.M = sparse.eye(M)
+        # self.L = -D * sparse.csc_array(d2x.matrix)
+        # self.xstep = CrankNicolson(self, 0)
+
+        self.M = sparse.eye(N)
+        self.L = -D * sparse.csc_array(d2y.matrix)
+        self.ystep = CrankNicolson(self, 1)
+
+    def step(self, dt: float) -> None:
+        self.ystep.step(dt / 2)
+        self._crank_nicolson(dt)()
+        self.ystep.step(dt / 2)
+        self.t += dt
+        self.iter += 1
+
+
+class Wave2DBC(EquationSet):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        v: NDArray[np.float64],
+        p: NDArray[np.float64],
+        spatial_order: int,
+        domain: Domain,
+    ) -> None:
+        dx = _diff_grid(1, spatial_order, domain.grids[0], 0)
+        dy = _diff_grid(1, spatial_order, domain.grids[1], 1)
+        self.X = StateVector([u, v, p])
+
+        def f(X: StateVector) -> NDArray[np.float64]:
+            X.scatter()
+            u, v, p = X.variables
+            du = dx @ p
+            dv = dy @ p
+            dp: NDArray[np.float64] = dx @ u + dy @ v
+            return -cast(
+                NDArray[np.float64],
+                np.concatenate((du, dv, dp), axis=0),  # type: ignore
+            )
+
+        self.F = f
+
+        def bc(X: StateVector) -> None:
+            X.scatter()
+            u, v, p = X.variables
+            u[0, :] = 0
+            u[-1, :] = 0
+            X.gather()
+
+        self.BC = bc
