@@ -321,3 +321,119 @@ class Wave2DBC(EquationSet):
             X.gather()
 
         self.BC = bc
+
+# HW8 
+class ReactionDiffusionFI(EquationSet):
+    def __init__(
+        self,
+        c: NDArray[np.float64],
+        D: float,
+        spatial_order: int,
+        grid: Union[UniformNonPeriodicGrid, UniformPeriodicGrid],
+    ):
+        self.X = StateVector([c])
+        d2 = DifferenceUniformGrid(2, spatial_order, grid)
+        self.N = len(c)
+        I = sparse.eye(self.N)  # noqa: E741
+
+        self.M = I
+        self.L = -D * d2.matrix
+
+        def F(X: StateVector) -> NDArray[np.float64]:
+            return X.data * (1 - X.data)
+
+        self.F = F
+
+        def J(X: StateVector) -> NDArray[np.float64]:
+            c_matrix = sparse.diags(X.data)
+            return cast(NDArray[np.float64], sparse.eye(self.N) - 2 * c_matrix)
+
+        self.J = J
+
+# HW8 
+class BurgersFI(EquationSet):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        nu: Union[float, NDArray[np.float64]],
+        spatial_order: int,
+        grid: Union[UniformPeriodicGrid, NonUniformPeriodicGrid],
+    ):
+        N, *_ = u.shape
+        if isinstance(nu, (int, float)):
+            nu = np.full((N,), nu, dtype=np.float64)
+        if isinstance(nu, np.ndarray) and len(nu.shape) == 1:
+            nu = sparse.diags(nu)  # type: ignore
+        d2x = _diff_grid(2, spatial_order, grid, 0)
+        dx = _diff_grid(1, spatial_order, grid, 0)
+        self.X = StateVector([u])
+        self.M = sparse.eye(N)
+        self.L = -nu @ d2x.matrix
+
+        def F(X: StateVector) -> NDArray[np.float64]:
+            return -cast(NDArray[np.float64], np.multiply(X.data, dx @ X.data))
+
+        self.F = F
+
+        def J(X: StateVector) -> Any:
+            return -(sparse.diags(X.data) @ dx.matrix + sparse.diags(dx @ X.data))
+
+        self.J = J
+
+# HW8 
+class ReactionTwoSpeciesDiffusion(EquationSet):
+    def __init__(
+        self,
+        X: StateVector,
+        D: Union[float, NDArray[np.float64]],
+        r: Union[float, NDArray[np.float64]],
+        spatial_order: int,
+        grid: Union[
+            UniformPeriodicGrid, UniformNonPeriodicGrid, NonUniformPeriodicGrid
+        ],
+    ):
+        d2x = _diff_grid(2, spatial_order, grid, 0)
+
+        N, *_ = X.variables[0].shape
+        if isinstance(D, (int, float)):
+            D = np.full((N,), D, dtype=np.float64)
+        if isinstance(D, np.ndarray) and len(D.shape) == 1:
+            D = sparse.diags(np.concatenate((D, D)))  # type: ignore
+
+        if isinstance(r, (int, float)):
+            r = np.full((N,), r, dtype=np.float64)
+        if isinstance(r, np.ndarray) and len(r.shape) == 1:
+            r = sparse.diags(r)  # type: ignore
+
+        self.X = X
+        self.M = sparse.eye(2 * N)
+        self.L = -D @ sparse.bmat(
+            (
+                (d2x.matrix, sparse.csr_matrix((N, N))),
+                (sparse.csr_matrix((N, N)), d2x.matrix),
+            )
+        )
+
+        def F(X: StateVector) -> NDArray[np.float64]:
+            X.scatter()
+            c1, c2 = X.variables
+            return cast(
+                NDArray[np.float64],
+                np.concatenate(  # type: ignore
+                    (np.multiply(c1, 1 - c1 - c2), r @ np.multiply(c2, c1 - c2))
+                ),
+            )
+
+        self.F = F
+
+        def J(X: StateVector) -> Any:
+            X.scatter()
+            c1, c2 = X.variables
+            return sparse.bmat(
+                (
+                    (sparse.diags(1 - 2 * c1 - c2), sparse.diags(-c1)),
+                    (r @ sparse.diags(c2), r @ sparse.diags(c1 - 2 * c2)),
+                )
+            )
+
+        self.J = J

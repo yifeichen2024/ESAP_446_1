@@ -372,7 +372,7 @@ class BackwardEulerFI(FullyImplicitTimestepper):
                 break
         return self.X.data
 
-
+# HW8 For the crank-nicolson 
 class CrankNicolsonFI(FullyImplicitTimestepper):
     def _step(
         self, dt: float, guess: Optional[NDArray[np.float64]] = None
